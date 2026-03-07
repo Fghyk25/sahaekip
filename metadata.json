@@ -1,0 +1,8 @@
+{
+  "name": "ARTES Saha Operasyon Portalı",
+  "description": "ATS SAHA ekiplerinin iş bildirimi, envanter takibi ve saha operasyonlarını yönetebildiği profesyonel iş platformu.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ]
+}
