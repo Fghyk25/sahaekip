@@ -35,6 +35,10 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
   const [activeView, setActiveView] = useState<string>('overview');
   const [searchTerm, setSearchTerm] = useState('');
   
+  const today = new Date().toISOString().split('T')[0];
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
+  
   // Duyuru Form Durumu
   const [announcement, setAnnouncement] = useState({ target: 'HEPSİ', title: '', message: '' });
   const [isSending, setIsSending] = useState(false);
@@ -125,19 +129,148 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
     Object.values(data || {}).forEach((sheetData: any) => {
       if (Array.isArray(sheetData)) {
         sheetData.forEach((row: any) => {
-          const team = row["Ekip"];
-          if (team) teams[team] = (teams[team] || 0) + 1;
+          if (isWithinDateRange(row)) {
+            const team = row["Ekip"];
+            if (team) teams[team] = (teams[team] || 0) + 1;
+          }
         });
       }
     });
     return Object.entries(teams).sort((a, b) => b[1] - a[1]).slice(0, 10);
   };
 
+  const isWithinDateRange = (row: any) => {
+    const dateVal = row["Tarih"] || row["Zaman Damgası"] || row["Tarih/Saat"] || row["Kayıt Tarihi"];
+    if (!dateVal) return true;
+    
+    try {
+      let rowDate: Date;
+      const strDate = String(dateVal);
+      
+      if (strDate.includes('.')) {
+        const parts = strDate.split(' ')[0].split('.');
+        if (parts.length === 3) {
+          rowDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        } else {
+          rowDate = new Date(strDate);
+        }
+      } else {
+        rowDate = new Date(strDate);
+      }
+
+      if (isNaN(rowDate.getTime())) return true;
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      
+      return rowDate >= start && rowDate <= end;
+    } catch (e) {
+      return true;
+    }
+  };
+
   const renderCellValue = (val: any) => {
     if (val === null || val === undefined) return "-";
-    if (typeof val === 'object') return JSON.stringify(val);
+    
+    // Handle object values (like Google Sheets image objects)
+    if (typeof val === 'object') {
+      // Check if it's an image object
+      const imageUrl = val.url || val.source || val.link || val.imageUrl || val.image || (typeof val.value === 'string' ? val.value : null);
+      
+      if (val.valueType === 'IMAGE' || val.type === 'IMAGE' || val.image || (imageUrl && (String(imageUrl).startsWith('http') || String(imageUrl).startsWith('data:image/')))) {
+        if (imageUrl) {
+          return (
+            <div className="group relative inline-block">
+              <img 
+                src={String(imageUrl)} 
+                alt="Saha Fotoğrafı" 
+                className="h-10 w-10 object-cover rounded border border-slate-200 cursor-zoom-in hover:scale-150 transition-transform"
+                referrerPolicy="no-referrer"
+                onClick={() => window.open(String(imageUrl), '_blank')}
+              />
+            </div>
+          );
+        }
+      }
+      return JSON.stringify(val);
+    }
+
     const strVal = String(val);
-    if (strVal.startsWith('=IMAGE')) return <span className="text-blue-500 italic">Görsel</span>;
+
+    // Handle base64 image strings
+    if (strVal.startsWith('data:image/')) {
+      return (
+        <div className="group relative inline-block">
+          <img 
+            src={strVal} 
+            alt="Base64 Fotoğraf" 
+            className="h-10 w-10 object-cover rounded border border-slate-200 cursor-zoom-in hover:scale-150 transition-transform"
+            referrerPolicy="no-referrer"
+            onClick={() => {
+              const win = window.open();
+              win?.document.write(`<img src="${strVal}" style="max-width:100%">`);
+            }}
+          />
+        </div>
+      );
+    }
+
+    // Handle raw base64 strings (if they don't have the prefix but look like base64)
+    // This is a bit risky but we can try to detect long strings that might be base64
+    if (strVal.length > 1000 && !strVal.includes(' ') && !strVal.startsWith('http')) {
+      const base64Url = `data:image/jpeg;base64,${strVal}`;
+      return (
+        <div className="group relative inline-block">
+          <img 
+            src={base64Url} 
+            alt="Raw Base64 Fotoğraf" 
+            className="h-10 w-10 object-cover rounded border border-slate-200 cursor-zoom-in hover:scale-150 transition-transform"
+            referrerPolicy="no-referrer"
+            onClick={() => {
+              const win = window.open();
+              win?.document.write(`<img src="${base64Url}" style="max-width:100%">`);
+            }}
+          />
+        </div>
+      );
+    }
+
+    // Handle Google Sheets =IMAGE("URL") formula
+    if (strVal.startsWith('=IMAGE')) {
+      const match = strVal.match(/=IMAGE\("([^"]+)"/i);
+      if (match && match[1]) {
+        return (
+          <div className="group relative inline-block">
+            <img 
+              src={match[1]} 
+              alt="Saha Fotoğrafı" 
+              className="h-10 w-10 object-cover rounded border border-slate-200 cursor-zoom-in hover:scale-150 transition-transform"
+              referrerPolicy="no-referrer"
+              onClick={() => window.open(match[1], '_blank')}
+            />
+          </div>
+        );
+      }
+      return <span className="text-blue-500 italic">Görsel</span>;
+    }
+
+    // Handle direct image URLs
+    if (typeof val === 'string' && (val.startsWith('http') && (val.match(/\.(jpeg|jpg|gif|png)$/i) || val.includes('googleusercontent') || val.includes('drive.google.com')))) {
+      return (
+        <div className="group relative inline-block">
+          <img 
+            src={val} 
+            alt="Fotoğraf" 
+            className="h-10 w-10 object-cover rounded border border-slate-200 cursor-zoom-in hover:scale-150 transition-transform"
+            referrerPolicy="no-referrer"
+            onClick={() => window.open(val, '_blank')}
+          />
+        </div>
+      );
+    }
+
     if (typeof val === 'string' && val.includes(',') && !isNaN(parseFloat(val.split(',')[0]))) {
       return <a href={`https://www.google.com/maps?q=${val}`} target="_blank" className="text-indigo-600 underline font-black">KONUM</a>;
     }
@@ -146,10 +279,12 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
 
   const renderTable = (categoryName: string) => {
     const rows = data[categoryName] || [];
-    const filteredRows = rows.filter((row: any) => 
-      Object.values(row).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-    if (filteredRows.length === 0) return <div className="p-10 text-center text-slate-400 font-bold text-xs uppercase">Bulunamadı</div>;
+    const filteredRows = rows.filter((row: any) => {
+      const matchesSearch = Object.values(row).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesDate = isWithinDateRange(row);
+      return matchesSearch && matchesDate;
+    });
+    if (filteredRows.length === 0) return <div className="p-10 text-center text-slate-400 font-bold text-xs uppercase">Bulunamadı veya bu tarihlerde kayıt yok</div>;
     const headers = Object.keys(filteredRows[0]);
     return (
       <div className="overflow-x-auto">
@@ -190,12 +325,13 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
                 const workbook = XLSX.utils.book_new();
                 categories.forEach(cat => {
                   const rows = data[cat] || [];
-                  if (rows.length > 0) {
-                    const worksheet = XLSX.utils.json_to_sheet(rows);
+                  const filtered = rows.filter(isWithinDateRange);
+                  if (filtered.length > 0) {
+                    const worksheet = XLSX.utils.json_to_sheet(filtered);
                     XLSX.utils.book_append_sheet(workbook, worksheet, cat);
                   }
                 });
-                XLSX.writeFile(workbook, `ATS_SAHA_TUM_VERILER_${new Date().toISOString().split('T')[0]}.xlsx`);
+                XLSX.writeFile(workbook, `ATS_SAHA_FILTRELI_VERILER_${startDate}_${endDate}.xlsx`);
               }} 
               className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all bg-emerald-600 text-white shadow-md hover:bg-emerald-700"
             >
@@ -203,6 +339,22 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
             </button>
           </div>
           <div className="flex items-center gap-2 w-full md:w-auto">
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
+              <Calendar size={12} className="text-slate-400" />
+              <input 
+                type="date" 
+                className="bg-transparent text-[10px] font-bold outline-none text-slate-900" 
+                value={startDate} 
+                onChange={e => setStartDate(e.target.value)}
+              />
+              <span className="text-slate-300">-</span>
+              <input 
+                type="date" 
+                className="bg-transparent text-[10px] font-bold outline-none text-slate-900" 
+                value={endDate} 
+                onChange={e => setEndDate(e.target.value)}
+              />
+            </div>
             <button onClick={fetchData} disabled={loading} className="p-2 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-600">
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             </button>
@@ -216,7 +368,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
         <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar">
           {categories.map((cat) => (
             <button key={cat} onClick={() => setActiveView(cat)} className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tighter border transition-all ${activeView === cat ? 'bg-slate-800 text-white' : 'bg-white text-slate-500 border-slate-200'}`}>
-              {cat} ({data[cat]?.length || 0})
+              {cat} ({data[cat]?.filter(isWithinDateRange).length || 0})
             </button>
           ))}
         </div>
@@ -276,11 +428,11 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
         <div className="space-y-4 animate-in fade-in duration-300">
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             {[
-              { label: 'SORUNLAR', value: data?.["Sorunlar"]?.length || 0, icon: <AlertTriangle size={18} />, color: 'text-blue-600', bg: 'bg-blue-50' },
-              { label: 'DUYURULAR', value: data?.["Duyurular"]?.length || 0, icon: <Bell size={18} />, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-              { label: 'TAMAMLANAN', value: data?.["İş Tamamlamalar"]?.reduce((acc: any, curr: any) => acc + (Number(curr["Adet"]) || 0), 0) || 0, icon: <CheckCircle2 size={18} />, color: 'text-orange-600', bg: 'bg-orange-50' },
-              { label: 'ENVANTER', value: data?.["Envanter Kayıtları"]?.length || 0, icon: <TrendingUp size={18} />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-              { label: 'ARAÇ', value: data?.["Araç Kayıtları"]?.length || 0, icon: <Car size={18} />, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+              { label: 'SORUNLAR', value: data?.["Sorunlar"]?.filter(isWithinDateRange).length || 0, icon: <AlertTriangle size={18} />, color: 'text-blue-600', bg: 'bg-blue-50' },
+              { label: 'DUYURULAR', value: data?.["Duyurular"]?.filter(isWithinDateRange).length || 0, icon: <Bell size={18} />, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+              { label: 'TAMAMLANAN', value: data?.["İş Tamamlamalar"]?.filter(isWithinDateRange).reduce((acc: any, curr: any) => acc + (Number(curr["Adet"]) || 0), 0) || 0, icon: <CheckCircle2 size={18} />, color: 'text-orange-600', bg: 'bg-orange-50' },
+              { label: 'ENVANTER', value: data?.["Envanter Kayıtları"]?.filter(isWithinDateRange).length || 0, icon: <TrendingUp size={18} />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+              { label: 'ARAÇ', value: data?.["Araç Kayıtları"]?.filter(isWithinDateRange).length || 0, icon: <Car size={18} />, color: 'text-cyan-600', bg: 'bg-cyan-50' },
             ].map((s, i) => (
               <div key={i} className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className={`${s.bg} ${s.color} w-8 h-8 rounded-lg flex items-center justify-center mb-2`}>{s.icon}</div>
@@ -338,12 +490,20 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
              </div>
              <div className="flex items-center gap-2">
                 <button 
-                  onClick={() => downloadExcel(activeView)}
+                  onClick={() => {
+                    const rows = data[activeView] || [];
+                    const filtered = rows.filter(isWithinDateRange);
+                    if (filtered.length === 0) return;
+                    const worksheet = XLSX.utils.json_to_sheet(filtered);
+                    const workbook = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(workbook, worksheet, activeView);
+                    XLSX.writeFile(workbook, `${activeView}_FILTRELI_${startDate}_${endDate}.xlsx`);
+                  }}
                   className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-[10px] font-black transition-colors"
                 >
                   <Download size={12} /> EXCEL İNDİR
                 </button>
-                <div className="text-[10px] font-black bg-white/10 px-2 py-1 rounded">TOPLAM: {data[activeView]?.length || 0}</div>
+                <div className="text-[10px] font-black bg-white/10 px-2 py-1 rounded">TOPLAM: {data[activeView]?.filter(isWithinDateRange).length || 0}</div>
              </div>
           </div>
           {renderTable(activeView)}

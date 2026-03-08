@@ -86,7 +86,7 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ ekipKodu, sheetUrl
   const [showScanner, setShowScanner] = useState(false);
 
   const handleHizmetNoChange = (val: string) => {
-    const numericValue = val.replace(/[^0-9]/g, '');
+    const numericValue = val.replace(/[^0-9]/g, '').slice(0, 10);
     setFormData(prev => ({ ...prev, hizmetNo: numericValue }));
   };
 
@@ -135,7 +135,8 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ ekipKodu, sheetUrl
             {actionType !== 'receive' && (
               <div>
                 <label className={labelClass}>Hizmet No</label>
-                <input required type="text" inputMode="numeric" pattern="[0-9]*" className={inputClass} value={formData.hizmetNo} onChange={e => handleHizmetNoChange(e.target.value)} placeholder="8821..."/>
+                <input required type="text" inputMode="numeric" pattern="\d{10}" minLength={10} maxLength={10} className={inputClass} value={formData.hizmetNo} onChange={e => handleHizmetNoChange(e.target.value)} placeholder="10 Haneli Hizmet No"/>
+                {formData.hizmetNo.length > 0 && formData.hizmetNo.length < 10 && <p className="text-[8px] text-red-500 font-bold mt-0.5">Eksik: {10 - formData.hizmetNo.length} hane kaldı</p>}
               </div>
             )}
             

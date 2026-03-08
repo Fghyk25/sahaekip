@@ -15,7 +15,7 @@ export const PortChangeForm: React.FC<PortChangeFormProps> = ({ ekipKodu, sheetU
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleHizmetNoChange = (val: string) => {
-    const numericValue = val.replace(/[^0-9]/g, '');
+    const numericValue = val.replace(/[^0-9]/g, '').slice(0, 10);
     setFormData(prev => ({ ...prev, hizmetNo: numericValue }));
   };
 
@@ -44,7 +44,8 @@ export const PortChangeForm: React.FC<PortChangeFormProps> = ({ ekipKodu, sheetU
         <form onSubmit={handleSubmit} className="space-y-2">
           <div className="space-y-0.5">
             <label className={labelClass}>Hizmet No</label>
-            <input required type="text" inputMode="numeric" pattern="[0-9]*" className="w-full px-3 py-2 rounded-lg border text-xs font-bold" value={formData.hizmetNo} onChange={e => handleHizmetNoChange(e.target.value)} placeholder="8821..." />
+            <input required type="text" inputMode="numeric" pattern="\d{10}" minLength={10} maxLength={10} className="w-full px-3 py-2 rounded-lg border text-xs font-bold" value={formData.hizmetNo} onChange={e => handleHizmetNoChange(e.target.value)} placeholder="10 Haneli No" />
+            {formData.hizmetNo.length > 0 && formData.hizmetNo.length < 10 && <p className="text-[8px] text-red-500 font-bold">Eksik: {10 - formData.hizmetNo.length}</p>}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-0.5">

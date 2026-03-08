@@ -20,7 +20,7 @@ export const JobCompletionForm: React.FC<JobCompletionFormProps> = ({ ekipKodu, 
   const tesisCount = jobCompletions.filter(jc => jc.isTipi === 'TESİS').reduce((acc, curr) => acc + curr.isAdedi, 0);
 
   const handleHizmetNoChange = (val: string) => {
-    const numericValue = val.replace(/[^0-9]/g, '');
+    const numericValue = val.replace(/[^0-9]/g, '').slice(0, 10);
     setHizmetNo(numericValue);
   };
 
@@ -62,7 +62,8 @@ export const JobCompletionForm: React.FC<JobCompletionFormProps> = ({ ekipKodu, 
         <form onSubmit={handleSubmit} className="space-y-2.5">
           <div className="space-y-1">
             <label className="text-[9px] font-black text-slate-500 uppercase block leading-none">Hizmet No</label>
-            <input required type="text" inputMode="numeric" pattern="[0-9]*" className="w-full px-3 py-3 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 font-bold text-center tracking-widest text-lg" value={hizmetNo} onChange={e => handleHizmetNoChange(e.target.value)} placeholder="8821..." />
+            <input required type="text" inputMode="numeric" pattern="\d{10}" minLength={10} maxLength={10} className="w-full px-3 py-3 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 font-bold text-center tracking-widest text-lg" value={hizmetNo} onChange={e => handleHizmetNoChange(e.target.value)} placeholder="10 HANELİ NO" />
+            {hizmetNo.length > 0 && hizmetNo.length < 10 && <p className="text-[8px] text-red-500 font-bold text-center">Eksik: {10 - hizmetNo.length} hane kaldı</p>}
           </div>
           
           <div className="flex bg-slate-100 p-1 rounded-xl gap-1">

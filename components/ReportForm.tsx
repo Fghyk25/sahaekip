@@ -18,7 +18,7 @@ export const ReportForm: React.FC<ReportFormProps> = ({ ekipKodu, sheetUrl, onRe
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleHizmetNoChange = (val: string) => {
-    const numericValue = val.replace(/[^0-9]/g, '');
+    const numericValue = val.replace(/[^0-9]/g, '').slice(0, 10);
     setFormData(prev => ({ ...prev, hizmetNo: numericValue }));
   };
 
@@ -46,7 +46,11 @@ export const ReportForm: React.FC<ReportFormProps> = ({ ekipKodu, sheetUrl, onRe
       </div>
       <form onSubmit={handleSubmit} className="p-3.5 space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <div><label className={labelClass}>Hizmet No</label><input required type="text" inputMode="numeric" pattern="[0-9]*" className={inputClass} value={formData.hizmetNo} onChange={e => handleHizmetNoChange(e.target.value)} placeholder="8821..."/></div>
+          <div>
+            <label className={labelClass}>Hizmet No</label>
+            <input required type="text" inputMode="numeric" pattern="\d{10}" minLength={10} maxLength={10} className={inputClass} value={formData.hizmetNo} onChange={e => handleHizmetNoChange(e.target.value)} placeholder="10 Haneli No"/>
+            {formData.hizmetNo.length > 0 && formData.hizmetNo.length < 10 && <p className="text-[8px] text-red-500 font-bold">Eksik: {10 - formData.hizmetNo.length}</p>}
+          </div>
           <div><label className={labelClass}>Santral/Saha</label><input required type="text" className={inputClass} value={formData.saha} onChange={e => setFormData({...formData, saha: e.target.value})} placeholder="SH-04"/></div>
           <div><label className={labelClass}>Kutu/Devre</label><input required type="text" className={inputClass} value={formData.kutu} onChange={e => setFormData({...formData, kutu: e.target.value})} placeholder="K-05"/></div>
           <div><label className={labelClass}>Sorun Tipi</label><select className={`${inputClass} appearance-none cursor-pointer`} value={formData.sorunTipi} onChange={e => setFormData({...formData, sorunTipi: e.target.value as SorunTipi})}>{Object.values(SorunTipi).map(t => <option key={t} value={t} className="text-slate-900 bg-white font-bold">{t}</option>)}</select></div>
