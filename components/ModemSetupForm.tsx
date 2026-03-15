@@ -11,7 +11,12 @@ interface ModemSetupFormProps {
 }
 
 export const ModemSetupForm: React.FC<ModemSetupFormProps> = ({ ekipKodu, sheetUrl, onReportAdded, onComplete }) => {
-  const [formData, setFormData] = useState({ hizmetNo: '', modemTipi: ModemTipleri[0], aciklama: 'KULLANICI ADI ŞİFRE' });
+  const isKabloTeam = ['242FKABLO17599', '17600', '17601'].includes(ekipKodu);
+  const kabloOptions = ['HIZ KONTROL', 'IP KONTROL', 'HIZ DÜŞÜR', 'SİL TANIT', 'İRTİBAT ?'];
+  const defaultOptions = ['KULLANICI ADI ŞİFRE', 'SİL TANIT', 'HIZ DÜŞÜR', 'İRTİBAT ?'];
+  const options = isKabloTeam ? kabloOptions : defaultOptions;
+
+  const [formData, setFormData] = useState({ hizmetNo: '', modemTipi: ModemTipleri[0], aciklama: options[0] });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleHizmetNoChange = (val: string) => {
@@ -39,7 +44,9 @@ export const ModemSetupForm: React.FC<ModemSetupFormProps> = ({ ekipKodu, sheetU
     <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
       <div className="bg-indigo-600 p-2.5 text-white flex items-center justify-center gap-2">
         <Router size={18} />
-        <h3 className="font-black text-xs uppercase tracking-widest">MODEM KURULUM TALEBİ</h3>
+        <h3 className="font-black text-xs uppercase tracking-widest">
+          {isKabloTeam ? 'İYS KONTROL TALEBİ' : 'MODEM KURULUM TALEBİ'}
+        </h3>
       </div>
       <form onSubmit={handleSubmit} className="p-4 space-y-4">
         <div>
@@ -58,7 +65,7 @@ export const ModemSetupForm: React.FC<ModemSetupFormProps> = ({ ekipKodu, sheetU
         <div>
           <label className={labelClass}>İşlem Tipi</label>
           <select className={`${inputClass} cursor-pointer appearance-none`} value={formData.aciklama} onChange={e => setFormData({...formData, aciklama: e.target.value})}>
-            {['KULLANICI ADI ŞİFRE', 'SİL TANIT', 'HIZ DÜŞÜR', 'İRTİBAT ?'].map(opt => (
+            {options.map(opt => (
               <option key={opt} value={opt} className="text-slate-900 bg-white font-bold">{opt}</option>
             ))}
           </select>

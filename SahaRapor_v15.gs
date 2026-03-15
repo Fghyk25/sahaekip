@@ -1,18 +1,4 @@
-
-import React, { useState } from 'react';
-import { Check, Settings, AlertCircle, FileCode, Copy, RefreshCw, ShieldCheck, Image as ImageIcon } from 'lucide-react';
-
-interface ConfigTabProps {
-  sheetUrl: string;
-  onUpdate: (url: string) => void;
-}
-
-export const ConfigTab: React.FC<ConfigTabProps> = ({ sheetUrl, onUpdate }) => {
-  const [url, setUrl] = useState(sheetUrl);
-  const [saved, setSaved] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const scriptCode = `/**
+/**
  * SahaRapor v15 - Duyuru Sistemi Destekli
  */
 
@@ -166,77 +152,4 @@ function doPost(e) {
   } catch (err) {
     return ContentService.createTextOutput("Hata: " + err.message).setMimeType(ContentService.MimeType.TEXT);
   }
-}`;
-
-  const handleSave = () => {
-    onUpdate(url);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
-
-  const copyCode = () => {
-    navigator.clipboard.writeText(scriptCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-      <div className="bg-slate-900 p-5 text-white flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <Settings size={18} className="text-blue-400" />
-          <h3 className="font-black text-sm uppercase tracking-widest">SİSTEM AYARLARI</h3>
-        </div>
-        <div className="flex gap-2">
-          <span className="text-[9px] bg-indigo-500/20 px-2 py-1 rounded text-indigo-400 font-bold border border-indigo-500/30">NOTIFICATION SUPPORT</span>
-          <span className="text-[9px] bg-blue-500/20 px-2 py-1 rounded text-blue-400 font-bold border border-blue-500/30">V15 STABLE</span>
-        </div>
-      </div>
-
-      <div className="p-6 space-y-6">
-        <div className="space-y-3">
-          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Google Apps Script URL</label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              className="flex-1 px-4 py-4 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 font-bold outline-none text-xs font-mono"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://script.google.com/macros/s/.../exec"
-            />
-            <button onClick={handleSave} className="bg-blue-600 text-white px-6 rounded-xl font-black text-xs active:scale-95 transition-all">
-              {saved ? <Check size={20} /> : 'KAYDET'}
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-200 space-y-3">
-           <div className="flex gap-3">
-              <RefreshCw className="text-indigo-600 shrink-0" size={20} />
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-indigo-800 uppercase">Duyuru Sistemi İçin Güncelleme Şart</p>
-                <p className="text-[10px] text-indigo-700 font-bold leading-relaxed uppercase">
-                  Yeni v15 kodu, yönetici duyurularını "Duyurular" sekmesine kaydetmenizi sağlar.
-                </p>
-              </div>
-           </div>
-        </div>
-
-        <div className="space-y-2">
-           <div className="flex justify-between items-center">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-tight flex items-center gap-2">
-                <FileCode size={14} /> v15 Google Apps Script Kodu
-              </span>
-              <button onClick={copyCode} className="text-[10px] bg-slate-100 px-3 py-1.5 rounded-full font-black uppercase tracking-tighter flex items-center gap-1">
-                {copied ? <Check size={12}/> : <Copy size={12}/>}
-                {copied ? 'KOPYALANDI' : 'KODU KOPYALA'}
-              </button>
-           </div>
-           <pre className="bg-slate-900 text-green-400 p-4 rounded-xl text-[9px] overflow-x-auto max-h-60 font-mono leading-relaxed ring-1 ring-slate-800 shadow-inner">
-             {scriptCode}
-           </pre>
-        </div>
-      </div>
-    </div>
-  );
-};
+}

@@ -20,8 +20,10 @@ import {
   Table as TableIcon,
   Bell,
   Send,
-  Loader2
+  Loader2,
+  Settings
 } from 'lucide-react';
+import { ConfigTab } from './ConfigTab';
 
 interface ManagerDashboardProps {
   sheetUrl?: string;
@@ -320,6 +322,9 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
             <button onClick={() => setActiveView('notify')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${activeView === 'notify' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'}`}>
               <Bell size={14} /> DUYURU GÖNDER
             </button>
+            <button onClick={() => setActiveView('settings')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${activeView === 'settings' ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'}`}>
+              <Settings size={14} /> AYARLAR
+            </button>
             <button 
               onClick={() => {
                 const workbook = XLSX.utils.book_new();
@@ -421,6 +426,12 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
                 {isSending ? <Loader2 className="animate-spin" /> : <Send size={18} />} BİLDİRİMİ GÖNDER
               </button>
            </form>
+        </div>
+      )}
+
+      {activeView === 'settings' && (
+        <div className="max-w-xl mx-auto">
+          <ConfigTab sheetUrl={sheetUrl || ''} onUpdate={onUpdateUrl} />
         </div>
       )}
 

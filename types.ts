@@ -45,7 +45,8 @@ export interface ImprovementReport {
   ekipKodu: string;
   timestamp: string;
   status: 'sent' | 'pending' | 'error';
-  reportType: 'improvement';
+  improvementType?: 'bildirim' | 'imalat';
+  reportType: 'improvement' | 'improvement_notification' | 'improvement_production';
 }
 
 export interface ModemSetupReport {
@@ -153,6 +154,21 @@ export enum SorunTipi {
 export const DurumSecenekleri = ['İYİ', 'ORTA', 'KÖTÜ', 'YOK', 'ONARILDI'];
 export const ModemTipleri = ['VDSL', 'GPON'];
 
+export interface KabloMaterialItem {
+  material: string;
+  quantity: string;
+}
+
+export interface KabloMaterialReport {
+  id: string;
+  actionType: 'AL' | 'KULLAN' | 'DEMONTE';
+  items: KabloMaterialItem[];
+  ekipKodu: string;
+  timestamp: string;
+  status: 'sent' | 'pending' | 'error';
+  reportType: 'kablo_material';
+}
+
 export interface AppState {
   isLoggedIn: boolean;
   isAdmin: boolean;
@@ -165,6 +181,7 @@ export interface AppState {
   vehicleLogs: VehicleLog[];
   portChanges: PortChangeReport[];
   inventoryLogs: InventoryLog[];
+  kabloMaterialReports: KabloMaterialReport[];
   announcements: Announcement[];
   sheetUrl?: string;
 }

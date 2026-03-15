@@ -6,11 +6,12 @@ import { Send, Loader2, Camera, MapPin, CheckCircle } from 'lucide-react';
 interface ImprovementFormProps {
   ekipKodu: string;
   sheetUrl?: string;
+  type: 'bildirim' | 'imalat';
   onReportAdded: (report: ImprovementReport) => void;
   onComplete: () => void;
 }
 
-export const ImprovementForm: React.FC<ImprovementFormProps> = ({ ekipKodu, sheetUrl, onReportAdded, onComplete }) => {
+export const ImprovementForm: React.FC<ImprovementFormProps> = ({ ekipKodu, sheetUrl, type, onReportAdded, onComplete }) => {
   const [formData, setFormData] = useState({
     yerlesimAdi: '',
     bakimTarihi: new Date().toISOString().split('T')[0],
@@ -27,7 +28,8 @@ export const ImprovementForm: React.FC<ImprovementFormProps> = ({ ekipKodu, shee
     setIsSubmitting(true);
     const newReport: ImprovementReport = {
       id: crypto.randomUUID(), ...formData, photo: photo || undefined, location: location || undefined, ekipKodu,
-      timestamp: new Date().toLocaleString('tr-TR'), status: 'sent', reportType: 'improvement'
+      timestamp: new Date().toLocaleString('tr-TR'), status: 'sent', improvementType: type, 
+      reportType: type === 'bildirim' ? 'improvement_notification' : 'improvement_production'
     };
     if (sheetUrl) { try { await fetch(sheetUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(newReport) }); } catch (err) {} }
     onReportAdded(newReport);
@@ -42,7 +44,9 @@ export const ImprovementForm: React.FC<ImprovementFormProps> = ({ ekipKodu, shee
     <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
       <div className="bg-teal-600 p-2.5 text-white flex items-center justify-center gap-2">
         <CheckCircle size={18} />
-        <h3 className="font-black text-xs uppercase tracking-widest">İYİLEŞTİRME & BAKIM</h3>
+        <h3 className="font-black text-xs uppercase tracking-widest">
+          {type === 'bildirim' ? 'İYİLEŞTİRME BİLDİRİM' : 'İYİLEŞTİRME İMALAT'}
+        </h3>
       </div>
       <form onSubmit={handleSubmit} className="p-4 space-y-4">
         <div>

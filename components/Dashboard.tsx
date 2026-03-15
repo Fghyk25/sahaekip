@@ -8,9 +8,10 @@ import { JobCompletionForm } from './JobCompletionForm';
 import { VehicleLogForm } from './VehicleLogForm';
 import { PortChangeForm } from './PortChangeForm';
 import { InventoryForm } from './InventoryForm';
+import { KabloMaterialForm } from './KabloMaterialForm';
 import { ReportList } from './ReportList';
 import { ConfigTab } from './ConfigTab';
-import { Report, ImprovementReport, ModemSetupReport, DamageReport, JobCompletionReport, VehicleLog, PortChangeReport, InventoryLog, Announcement } from '../types';
+import { Report, ImprovementReport, ModemSetupReport, DamageReport, JobCompletionReport, VehicleLog, PortChangeReport, InventoryLog, Announcement, KabloMaterialReport } from '../types';
 import { 
   LayoutGrid, 
   ClipboardList, 
@@ -41,6 +42,7 @@ interface DashboardProps {
   vehicleLogs: VehicleLog[];
   portChanges: PortChangeReport[];
   inventoryLogs: InventoryLog[];
+  kabloMaterialReports: KabloMaterialReport[];
   sheetUrl?: string;
   onReportAdded: (report: Report) => void;
   onImprovementReportAdded: (report: ImprovementReport) => void;
@@ -50,29 +52,51 @@ interface DashboardProps {
   onVehicleLogAdded: (report: VehicleLog) => void;
   onPortChangeAdded: (report: PortChangeReport) => void;
   onInventoryLogAdded: (log: InventoryLog) => void;
+  onKabloMaterialReportAdded: (report: KabloMaterialReport) => void;
   onUpdateSheetUrl: (url: string) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
   ekipKodu, reports, improvementReports, modemReports, damageReports, 
-  jobCompletions, vehicleLogs, portChanges, inventoryLogs, sheetUrl, 
+  jobCompletions, vehicleLogs, portChanges, inventoryLogs, kabloMaterialReports, sheetUrl, 
   onReportAdded, onImprovementReportAdded, onModemReportAdded, onDamageReportAdded, 
-  onJobCompletionAdded, onVehicleLogAdded, onPortChangeAdded, onInventoryLogAdded, onUpdateSheetUrl 
+  onJobCompletionAdded, onVehicleLogAdded, onPortChangeAdded, onInventoryLogAdded, onKabloMaterialReportAdded, onUpdateSheetUrl 
 }) => {
-  const [activeTab, setActiveTab] = useState<'problem' | 'improvement' | 'modem' | 'damage' | 'job' | 'vehicle' | 'port' | 'inventory' | 'history' | 'settings' | 'notices'>('vehicle');
+  const isKabloTeam = ['242FKABLO17599', '17600', '17601'].includes(ekipKodu);
+  const [activeTab, setActiveTab] = useState<'problem' | 'improvement_notification' | 'improvement_production' | 'modem' | 'damage' | 'job' | 'vehicle' | 'port' | 'inventory' | 'history' | 'notices' | 'kablo_material'>('vehicle');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loadingNotices, setLoadingNotices] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  
+  const getTodayStr = () => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    return `${day}.${month}.${year}`;
+  };
+  const todayStr = getTodayStr();
 
   const fetchAnnouncements = async () => {
     if (!sheetUrl) return;
     setLoadingNotices(true);
+    setFetchError(null);
     try {
       const response = await fetch(sheetUrl);
+      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
       const json = await response.json();
       const allNotices = json["Duyurular"] || [];
       const myNotices = allNotices
-        .filter((n: any) => n["Hedef Ekip"] === ekipKodu || n["Hedef Ekip"] === 'HEPSİ')
+        .filter((n: any) => {
+          const target = String(n["Hedef Ekip"] || "").trim().toUpperCase();
+          const currentEkip = String(ekipKodu || "").trim().toUpperCase();
+          const timestamp = String(n["Zaman Damgası"] || "");
+          
+          const isTargetMatch = target === currentEkip || target === 'HEPSİ';
+          
+          return isTargetMatch;
+        })
         .map((n: any) => ({
           id: Math.random().toString(),
           timestamp: n["Zaman Damgası"],
@@ -85,6 +109,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       setAnnouncements(myNotices.reverse());
     } catch (err) {
       console.error(err);
+      setFetchError("Veriler alınamadı. Lütfen Google Sheet URL'sini ve internet bağlantınızı kontrol edin.");
     } finally {
       setLoadingNotices(false);
     }
@@ -92,22 +117,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   useEffect(() => {
     fetchAnnouncements();
+    const interval = setInterval(fetchAnnouncements, 60000); // Her 60 saniyede bir kontrol et
+    return () => clearInterval(interval);
   }, [sheetUrl, ekipKodu]);
 
-  const totalJobsDone = jobCompletions.reduce((acc, curr) => acc + curr.isAdedi, 0);
+  const totalJobsDone = jobCompletions
+    .filter(jc => jc.timestamp.startsWith(todayStr))
+    .reduce((acc, curr) => acc + curr.isAdedi, 0);
 
   const tabs = [
     { id: 'vehicle', label: 'İŞBAŞI', icon: <Car size={16} />, color: 'bg-cyan-700' },
     { id: 'notices', label: 'BİLDİRİMLER', icon: <Bell size={16} />, color: 'bg-indigo-600' },
     { id: 'job', label: 'İŞ BİTİR', icon: <CheckCircle size={16} />, color: 'bg-orange-600' },
-    { id: 'inventory', label: 'ENVANTER', icon: <Package size={16} />, color: 'bg-emerald-600' },
-    { id: 'modem', label: 'MODEM KURULUM', icon: <Router size={16} />, color: 'bg-indigo-600' },
+    { id: isKabloTeam ? 'kablo_material' : 'inventory', label: isKabloTeam ? 'MALZEME' : 'ENVANTER', icon: <Package size={16} />, color: 'bg-emerald-600' },
+    { id: 'modem', label: isKabloTeam ? 'İYS KONTROL' : 'MODEM KURULUM', icon: <Router size={16} />, color: 'bg-indigo-600' },
     { id: 'problem', label: 'SORUNLU İŞ', icon: <ClipboardList size={16} />, color: 'bg-blue-600' },
     { id: 'damage', label: 'HASAR KAYDI', icon: <AlertTriangle size={16} />, color: 'bg-red-600' },
-    { id: 'improvement', label: 'İYİLEŞTİRME', icon: <Zap size={16} />, color: 'bg-teal-600' },
+    { id: 'improvement_notification', label: 'İYİLEŞTİRME BİLDİRİM', icon: <Zap size={16} />, color: 'bg-teal-600' },
+    { id: 'improvement_production', label: 'İYİLEŞTİRME İMALAT', icon: <Zap size={16} />, color: 'bg-teal-700' },
     { id: 'port', label: 'PORT DEĞİŞİM', icon: <Shuffle size={16} />, color: 'bg-violet-600' },
     { id: 'history', label: 'GEÇMİŞ', icon: <LayoutGrid size={16} />, color: 'bg-slate-800' },
-    { id: 'settings', label: 'AYARLAR', icon: <Settings size={16} />, color: 'bg-slate-600' },
   ] as const;
 
   const currentTab = tabs.find(t => t.id === activeTab) || tabs[0];
@@ -123,6 +152,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <RefreshCw size={14} className={loadingNotices ? 'animate-spin' : ''}/>
               </button>
             </div>
+            {fetchError && (
+              <div className="bg-red-50 border border-red-100 p-4 rounded-2xl text-center">
+                <p className="text-[10px] font-bold text-red-600 uppercase tracking-tight">{fetchError}</p>
+              </div>
+            )}
             {announcements.length === 0 ? (
               <div className="bg-white p-10 text-center rounded-2xl border border-dashed border-slate-200">
                 <Bell size={32} className="mx-auto text-slate-200 mb-3" />
@@ -157,6 +191,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
         return <ReportForm ekipKodu={ekipKodu} sheetUrl={sheetUrl} onReportAdded={onReportAdded} onComplete={() => setActiveTab('history')} />;
       case 'inventory':
         return <InventoryForm ekipKodu={ekipKodu} sheetUrl={sheetUrl} onLogAdded={onInventoryLogAdded} onComplete={() => {}} />;
+      case 'kablo_material':
+        return <KabloMaterialForm ekipKodu={ekipKodu} sheetUrl={sheetUrl} onReportAdded={onKabloMaterialReportAdded} onComplete={() => setActiveTab('history')} />;
       case 'job':
         return <JobCompletionForm ekipKodu={ekipKodu} sheetUrl={sheetUrl} jobCompletions={jobCompletions} onReportAdded={onJobCompletionAdded} onComplete={() => {}} />;
       case 'vehicle':
@@ -165,14 +201,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
         return <ModemSetupForm ekipKodu={ekipKodu} sheetUrl={sheetUrl} onReportAdded={onModemReportAdded} onComplete={() => setActiveTab('history')} />;
       case 'damage':
         return <DamageReportForm ekipKodu={ekipKodu} sheetUrl={sheetUrl} onReportAdded={onDamageReportAdded} onComplete={() => setActiveTab('history')} />;
-      case 'improvement':
-        return <ImprovementForm ekipKodu={ekipKodu} sheetUrl={sheetUrl} onReportAdded={onImprovementReportAdded} onComplete={() => setActiveTab('history')} />;
+      case 'improvement_notification':
+        return <ImprovementForm ekipKodu={ekipKodu} sheetUrl={sheetUrl} type="bildirim" onReportAdded={onImprovementReportAdded} onComplete={() => setActiveTab('history')} />;
+      case 'improvement_production':
+        return <ImprovementForm ekipKodu={ekipKodu} sheetUrl={sheetUrl} type="imalat" onReportAdded={onImprovementReportAdded} onComplete={() => setActiveTab('history')} />;
       case 'port':
         return <PortChangeForm ekipKodu={ekipKodu} sheetUrl={sheetUrl} onReportAdded={onPortChangeAdded} onComplete={() => setActiveTab('history')} />;
       case 'history':
         return <div className="space-y-2"><ReportList reports={reports} /></div>;
-      case 'settings':
-        return <ConfigTab sheetUrl={sheetUrl || ''} onUpdate={onUpdateSheetUrl} />;
       default:
         return <VehicleLogForm ekipKodu={ekipKodu} sheetUrl={sheetUrl} onReportAdded={onVehicleLogAdded} onComplete={() => setActiveTab('history')} />;
     }

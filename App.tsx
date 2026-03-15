@@ -3,13 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { PINEntry } from './components/PINEntry';
 import { Dashboard } from './components/Dashboard';
 import { ManagerDashboard } from './components/ManagerDashboard';
-import { AppState, Report, ImprovementReport, ModemSetupReport, DamageReport, JobCompletionReport, VehicleLog, PortChangeReport, InventoryLog } from './types';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { AppState, Report, ImprovementReport, ModemSetupReport, DamageReport, JobCompletionReport, VehicleLog, PortChangeReport, InventoryLog, KabloMaterialReport } from './types';
 import { HardHat, ShieldCheck } from 'lucide-react';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>(() => {
-    const saved = localStorage.getItem('atssaha_state_v15');
-    return saved ? JSON.parse(saved) : {
+    const defaultState: AppState = {
       isLoggedIn: false,
       isAdmin: false,
       ekipKodu: '',
@@ -21,8 +21,22 @@ const App: React.FC = () => {
       vehicleLogs: [],
       portChanges: [],
       inventoryLogs: [],
-      sheetUrl: ''
+      kabloMaterialReports: [],
+      announcements: [],
+      sheetUrl: 'https://script.google.com/macros/s/AKfycbw9izJZXcHymohpVKzo2Y3RtOStVa7Fq1qqRrIwHo8HOBOYyauim8Qxxt5qtSXMsE3D/exec'
     };
+
+    const saved = localStorage.getItem('atssaha_state_v15');
+    if (!saved) return defaultState;
+
+    try {
+      const parsed = JSON.parse(saved);
+      // Merge saved state with default state to ensure all new fields exist
+      return { ...defaultState, ...parsed };
+    } catch (e) {
+      console.error("State parsing error:", e);
+      return defaultState;
+    }
   });
 
   useEffect(() => {
@@ -79,12 +93,17 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, inventoryLogs: [newLog, ...prev.inventoryLogs] }));
   };
 
+  const addKabloMaterialReport = (newReport: KabloMaterialReport) => {
+    setState(prev => ({ ...prev, kabloMaterialReports: [newReport, ...prev.kabloMaterialReports] }));
+  };
+
   const updateSheetUrl = (url: string) => {
     setState(prev => ({ ...prev, sheetUrl: url }));
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <ErrorBoundary>
+      <div className="min-h-screen flex flex-col bg-slate-50">
       <header className={`p-4 shadow-md sticky top-0 z-50 text-white ${state.isAdmin ? 'bg-indigo-900' : 'bg-slate-900'}`}>
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -125,6 +144,7 @@ const App: React.FC = () => {
             onVehicleLogAdded={addVehicleLog}
             onPortChangeAdded={addPortChange}
             onInventoryLogAdded={addInventoryLog}
+            onKabloMaterialReportAdded={addKabloMaterialReport}
             onUpdateSheetUrl={updateSheetUrl}
           />
         )}
@@ -134,6 +154,7 @@ const App: React.FC = () => {
         &copy; 2026 ATS SAHA - ATS SAHA HİZMETLERİ PORTALI
       </footer>
     </div>
+    </ErrorBoundary>
   );
 };
 
