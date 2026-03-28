@@ -21,7 +21,8 @@ import {
   Bell,
   Send,
   Loader2,
-  Settings
+  Settings,
+  Router
 } from 'lucide-react';
 import { ConfigTab } from './ConfigTab';
 
@@ -288,18 +289,38 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
     });
     if (filteredRows.length === 0) return <div className="p-10 text-center text-slate-400 font-bold text-xs uppercase">Bulunamadı veya bu tarihlerde kayıt yok</div>;
     const headers = Object.keys(filteredRows[0]);
+    const isModemSetup = categoryName === 'Modem Kurulumlar';
+
     return (
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
               {headers.map(h => <th key={h} className="px-4 py-3 text-[9px] font-black text-slate-500 uppercase tracking-tighter whitespace-nowrap">{h}</th>)}
+              {isModemSetup && <th className="px-4 py-3 text-[9px] font-black text-slate-500 uppercase tracking-tighter whitespace-nowrap">İŞLEM</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredRows.map((row: any, idx: number) => (
               <tr key={idx} className="hover:bg-slate-50 transition-colors">
                 {headers.map(h => <td key={h} className="px-4 py-3 text-[10px] font-bold text-slate-700 whitespace-nowrap">{renderCellValue(row[h])}</td>)}
+                {isModemSetup && (
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <button 
+                      onClick={() => {
+                        setAnnouncement({
+                          target: row["Ekip"] || 'HEPSİ',
+                          title: row["Notlar"] || '',
+                          message: ''
+                        });
+                        setActiveView('notify');
+                      }}
+                      className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-[9px] font-black transition-all active:scale-95 shadow-sm"
+                    >
+                      <Send size={10} /> YANITLA
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -437,16 +458,21 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
 
       {activeView === 'overview' && (
         <div className="space-y-4 animate-in fade-in duration-300">
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {[
-              { label: 'SORUNLAR', value: data?.["Sorunlar"]?.filter(isWithinDateRange).length || 0, icon: <AlertTriangle size={18} />, color: 'text-blue-600', bg: 'bg-blue-50' },
-              { label: 'DUYURULAR', value: data?.["Duyurular"]?.filter(isWithinDateRange).length || 0, icon: <Bell size={18} />, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-              { label: 'TAMAMLANAN', value: data?.["İş Tamamlamalar"]?.filter(isWithinDateRange).reduce((acc: any, curr: any) => acc + (Number(curr["Adet"]) || 0), 0) || 0, icon: <CheckCircle2 size={18} />, color: 'text-orange-600', bg: 'bg-orange-50' },
-              { label: 'ENVANTER', value: data?.["Envanter Kayıtları"]?.filter(isWithinDateRange).length || 0, icon: <TrendingUp size={18} />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-              { label: 'ARAÇ', value: data?.["Araç Kayıtları"]?.filter(isWithinDateRange).length || 0, icon: <Car size={18} />, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+              { label: 'SORUNLAR', value: data?.["Sorunlar"]?.filter(isWithinDateRange).length || 0, icon: <AlertTriangle size={18} />, color: 'text-blue-600', bg: 'bg-blue-50', view: 'Sorunlar' },
+              { label: 'DUYURULAR', value: data?.["Duyurular"]?.filter(isWithinDateRange).length || 0, icon: <Bell size={18} />, color: 'text-indigo-600', bg: 'bg-indigo-50', view: 'Duyurular' },
+              { label: 'TAMAMLANAN', value: data?.["İş Tamamlamalar"]?.filter(isWithinDateRange).reduce((acc: any, curr: any) => acc + (Number(curr["Adet"]) || 0), 0) || 0, icon: <CheckCircle2 size={18} />, color: 'text-orange-600', bg: 'bg-orange-50', view: 'İş Tamamlamalar' },
+              { label: 'MODEM', value: data?.["Modem Kurulumlar"]?.filter(isWithinDateRange).length || 0, icon: <Router size={18} />, color: 'text-purple-600', bg: 'bg-purple-50', view: 'Modem Kurulumlar' },
+              { label: 'ENVANTER', value: data?.["Envanter Kayıtları"]?.filter(isWithinDateRange).length || 0, icon: <TrendingUp size={18} />, color: 'text-emerald-600', bg: 'bg-emerald-50', view: 'Envanter Kayıtları' },
+              { label: 'ARAÇ', value: data?.["Araç Kayıtları"]?.filter(isWithinDateRange).length || 0, icon: <Car size={18} />, color: 'text-cyan-600', bg: 'bg-cyan-50', view: 'Araç Kayıtları' },
             ].map((s, i) => (
-              <div key={i} className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className={`${s.bg} ${s.color} w-8 h-8 rounded-lg flex items-center justify-center mb-2`}>{s.icon}</div>
+              <div 
+                key={i} 
+                onClick={() => setActiveView(s.view)}
+                className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm cursor-pointer hover:border-indigo-300 hover:shadow-md active:scale-95 transition-all group"
+              >
+                <div className={`${s.bg} ${s.color} w-8 h-8 rounded-lg flex items-center justify-center mb-2 group-hover:scale-110 transition-transform`}>{s.icon}</div>
                 <div className="text-xl font-black text-slate-900 leading-none mb-1">{s.value}</div>
                 <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.label}</div>
               </div>
