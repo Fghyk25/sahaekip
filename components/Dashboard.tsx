@@ -117,7 +117,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   useEffect(() => {
     fetchAnnouncements();
-    const interval = setInterval(fetchAnnouncements, 60000); // Her 60 saniyede bir kontrol et
+    const interval = setInterval(fetchAnnouncements, 35000); // Her 35 saniyede bir kontrol et
     return () => clearInterval(interval);
   }, [sheetUrl, ekipKodu]);
 
