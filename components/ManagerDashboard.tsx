@@ -73,6 +73,8 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(fetchData, 90000);
+    return () => clearInterval(interval);
   }, [sheetUrl]);
 
   const sendAnnouncement = async (e: React.FormEvent) => {
