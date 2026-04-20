@@ -1,0 +1,203 @@
+[
+  {
+    "name": "announcements",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "name": "yönetici",
+        "type": "text",
+        "required": false,
+        "presentable": true,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "name": "hedef_ekip",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "name": "başlık",
+        "type": "text",
+        "required": false,
+        "presentable": true,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": null,
+          "pattern": ""
+        }
+      },
+      {
+        "name": "mesaj",
+        "type": "editor",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "convertUrls": false
+        }
+      }
+    ],
+    "indexes": [],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": null,
+    "options": {}
+  },
+  {
+    "name": "problems",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "name": "ekip",
+        "type": "text",
+        "required": false,
+        "presentable": true,
+        "unique": false,
+        "options": {}
+      },
+      {
+        "name": "hizmet_no",
+        "type": "text",
+        "required": false,
+        "presentable": true,
+        "unique": false,
+        "options": {}
+      },
+      {
+        "name": "saha",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {}
+      },
+      {
+        "name": "kutu",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {}
+      },
+      {
+        "name": "sorun",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {}
+      },
+      {
+        "name": "aciklama",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {}
+      },
+      {
+        "name": "konum",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {}
+      },
+      {
+        "name": "foto",
+        "type": "file",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "mimeTypes": ["image/jpeg", "image/png", "image/webp"],
+          "thumbs": ["100x100"],
+          "protected": false
+        }
+      }
+    ],
+    "indexes": [],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": null,
+    "options": {}
+  },
+  {
+    "name": "inventory",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "name": "ekip",
+        "type": "text",
+        "required": false,
+        "presentable": true,
+        "unique": false,
+        "options": {}
+      },
+      {
+        "name": "işlem",
+        "type": "select",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "maxSelect": 1,
+          "values": ["Giriş", "Çıkış"]
+        }
+      },
+      {
+        "name": "seri_no",
+        "type": "text",
+        "required": false,
+        "presentable": true,
+        "unique": false,
+        "options": {}
+      },
+      {
+        "name": "hizmet_no",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {}
+      },
+      {
+        "name": "tip",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {}
+      }
+    ],
+    "indexes": [],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": null,
+    "options": {}
+  }
+]
