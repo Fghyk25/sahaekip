@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { ModemSetupReport, ModemTipleri } from '../types';
 import { Send, Loader2, Router, Wifi, CheckCircle2 } from 'lucide-react';
+import { pb } from '../lib/pocketbase';
 
 interface ModemSetupFormProps {
   ekipKodu: string;
@@ -31,10 +32,32 @@ export const ModemSetupForm: React.FC<ModemSetupFormProps> = ({ ekipKodu, sheetU
       id: crypto.randomUUID(), ...formData, ekipKodu,
       timestamp: new Date().toLocaleString('tr-TR'), status: 'sent', reportType: 'modem_setup'
     };
-    if (sheetUrl) { try { await fetch(sheetUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(newReport) }); } catch (err) {} }
-    onReportAdded(newReport);
-    setIsSubmitting(false);
-    onComplete();
+
+    try {
+      // 1. Try PocketBase
+      try {
+        await pb.collection('reports').create({
+          ekip: ekipKodu,
+          type: 'modem_setup',
+          hizmet_no: formData.hizmetNo,
+          modem_tipi: formData.modemTipi,
+          aciklama: formData.aciklama,
+          data: JSON.stringify(newReport)
+        });
+      } catch (pbErr) {
+        console.warn("PocketBase report creation failed, falling back to Sheets:", pbErr);
+        // 2. Fallback to Google Sheets
+        if (sheetUrl) {
+          await fetch(sheetUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(newReport) });
+        }
+      }
+    } catch (err) {
+      console.error("Report submission error:", err);
+    } finally {
+      onReportAdded(newReport);
+      setIsSubmitting(false);
+      onComplete();
+    }
   };
 
   const labelClass = "text-[10px] font-black text-slate-500 uppercase tracking-tighter leading-none mb-1.5 block";

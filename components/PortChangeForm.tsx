@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { PortChangeReport } from '../types';
 import { Send, Loader2, CheckCircle2, Shuffle, Hash } from 'lucide-react';
+import { pb } from '../lib/pocketbase';
 
 interface PortChangeFormProps {
   ekipKodu: string;
@@ -26,10 +27,35 @@ export const PortChangeForm: React.FC<PortChangeFormProps> = ({ ekipKodu, sheetU
       id: crypto.randomUUID(), ...formData, ekipKodu,
       timestamp: new Date().toLocaleString('tr-TR'), status: 'sent', reportType: 'port_change'
     };
-    if (sheetUrl) { try { await fetch(sheetUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(newReport) }); } catch (err) {} }
-    onReportAdded(newReport);
-    setIsSubmitting(false);
-    onComplete();
+
+    try {
+      // 1. Try PocketBase
+      try {
+        await pb.collection('reports').create({
+          type: 'Port / Devre Değişimleri',
+          ekip_kodu: ekipKodu,
+          data: JSON.stringify(newReport)
+        });
+      } catch (pbErr) {
+        console.warn("PocketBase submission failed, falling back to Sheets:", pbErr);
+        // 2. Fallback to Google Sheets
+        if (sheetUrl) {
+          await fetch(sheetUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify(newReport)
+          });
+        }
+      }
+      
+      onReportAdded(newReport);
+      onComplete();
+    } catch (err) {
+      console.error("Submission error:", err);
+      alert("Gönderim hatası!");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const labelClass = "text-[9px] font-black text-slate-500 uppercase leading-none mb-0.5 block";

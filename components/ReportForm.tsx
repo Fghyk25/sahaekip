@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { SorunTipi, Report } from '../types';
 import { Send, Loader2, ClipboardList, Camera, MapPin } from 'lucide-react';
+import { pb } from '../lib/pocketbase';
 
 interface ReportFormProps {
   ekipKodu: string;
@@ -29,10 +30,35 @@ export const ReportForm: React.FC<ReportFormProps> = ({ ekipKodu, sheetUrl, onRe
       id: crypto.randomUUID(), ...formData, photo: photo || undefined, location: location || undefined,
       ekipKodu, timestamp: new Date().toLocaleString('tr-TR'), status: 'sent', reportType: 'problem'
     };
-    if (sheetUrl) { try { await fetch(sheetUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(newReport) }); } catch (err) {} }
-    onReportAdded(newReport);
-    setIsSubmitting(false);
-    onComplete();
+
+    try {
+      // 1. Try PocketBase
+      try {
+        await pb.collection('reports').create({
+          type: 'Sorunlu İş Bildirimleri',
+          ekip_kodu: ekipKodu,
+          data: JSON.stringify(newReport)
+        });
+      } catch (pbErr) {
+        console.warn("PocketBase submission failed, falling back to Sheets:", pbErr);
+        // 2. Fallback to Google Sheets
+        if (sheetUrl) {
+          await fetch(sheetUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify(newReport)
+          });
+        }
+      }
+      
+      onReportAdded(newReport);
+      onComplete();
+    } catch (err) {
+      console.error("Submission error:", err);
+      alert("Gönderim hatası!");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const labelClass = "text-[10px] font-black text-slate-500 uppercase tracking-tighter leading-none mb-1 block";

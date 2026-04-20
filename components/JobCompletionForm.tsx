@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { JobCompletionReport } from '../types';
 import { Loader2, CheckCircle2, ListOrdered, TrendingUp, Activity } from 'lucide-react';
+import { pb } from '../lib/pocketbase';
 
 interface JobCompletionFormProps {
   ekipKodu: string;
@@ -34,10 +35,35 @@ export const JobCompletionForm: React.FC<JobCompletionFormProps> = ({ ekipKodu, 
       status: 'sent',
       reportType: 'job_completion'
     };
-    if (sheetUrl) { try { await fetch(sheetUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(newReport) }); } catch (err) {} }
-    onReportAdded(newReport);
-    setIsSubmitting(false);
-    setHizmetNo('');
+
+    try {
+      // 1. Try PocketBase
+      try {
+        await pb.collection('reports').create({
+          type: 'İş Tamamlama Sayaçları',
+          ekip_kodu: ekipKodu,
+          data: JSON.stringify(newReport)
+        });
+      } catch (pbErr) {
+        console.warn("PocketBase submission failed, falling back to Sheets:", pbErr);
+        // 2. Fallback to Google Sheets
+        if (sheetUrl) {
+          await fetch(sheetUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify(newReport)
+          });
+        }
+      }
+      
+      onReportAdded(newReport);
+      setHizmetNo('');
+    } catch (err) {
+      console.error("Submission error:", err);
+      alert("Gönderim hatası!");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

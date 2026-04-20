@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { KabloMaterialReport, KabloMaterialItem } from '../types';
 import { Package, Plus, Trash2, Send, Loader2 } from 'lucide-react';
+import { pb } from '../lib/pocketbase';
 
 interface KabloMaterialFormProps {
   ekipKodu: string;
@@ -50,22 +51,35 @@ export const KabloMaterialForm: React.FC<KabloMaterialFormProps> = ({ ekipKodu, 
       reportType: 'kablo_material'
     };
 
-    if (sheetUrl) {
+    try {
+      // 1. Try PocketBase
       try {
-        await fetch(sheetUrl, {
-          method: 'POST',
-          mode: 'no-cors',
-          body: JSON.stringify(newReport)
+        await pb.collection('reports').create({
+          type: 'Kablo Malzeme Hareketleri',
+          ekip_kodu: ekipKodu,
+          data: JSON.stringify(newReport)
         });
-      } catch (err) {
-        console.error("Submission error:", err);
+      } catch (pbErr) {
+        console.warn("PocketBase submission failed, falling back to Sheets:", pbErr);
+        // 2. Fallback to Google Sheets
+        if (sheetUrl) {
+          await fetch(sheetUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify(newReport)
+          });
+        }
       }
+      
+      onReportAdded(newReport);
+      setItems([]);
+      onComplete();
+    } catch (err) {
+      console.error("Submission error:", err);
+      alert("Gönderim hatası!");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    onReportAdded(newReport);
-    setIsSubmitting(false);
-    setItems([]);
-    onComplete();
   };
 
   const labelClass = "text-[10px] font-black text-slate-500 uppercase tracking-tighter leading-none mb-1 block";

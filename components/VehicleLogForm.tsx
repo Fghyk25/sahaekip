@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { VehicleLog } from '../types';
 import { Car, Gauge, CheckCircle2, Loader2 } from 'lucide-react';
+import { pb } from '../lib/pocketbase';
 
 interface VehicleLogFormProps {
   ekipKodu: string;
@@ -27,10 +28,35 @@ export const VehicleLogForm: React.FC<VehicleLogFormProps> = ({ ekipKodu, sheetU
       status: 'sent',
       reportType: 'vehicle_log'
     };
-    if (sheetUrl) { try { await fetch(sheetUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(newLog) }); } catch (err) {} }
-    onReportAdded(newLog);
-    setIsSubmitting(false);
-    onComplete();
+
+    try {
+      // 1. Try PocketBase
+      try {
+        await pb.collection('reports').create({
+          type: 'Araç Kilometre Kayıtları',
+          ekip_kodu: ekipKodu,
+          data: JSON.stringify(newLog)
+        });
+      } catch (pbErr) {
+        console.warn("PocketBase submission failed, falling back to Sheets:", pbErr);
+        // 2. Fallback to Google Sheets
+        if (sheetUrl) {
+          await fetch(sheetUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify(newLog)
+          });
+        }
+      }
+      
+      onReportAdded(newLog);
+      onComplete();
+    } catch (err) {
+      console.error("Submission error:", err);
+      alert("Gönderim hatası!");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

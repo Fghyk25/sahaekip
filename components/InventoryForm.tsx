@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { InventoryLog, InventoryAction } from '../types';
 import { Package, Scan, Loader2, X } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
+import { pb } from '../lib/pocketbase';
 
 // Kamera sorunlarını önlemek için izole edilmiş tarayıcı bileşeni
 const BarcodeScanner: React.FC<{ onScan: (text: string) => void, onClose: () => void }> = ({ onScan, onClose }) => {
@@ -103,10 +104,35 @@ export const InventoryForm: React.FC<InventoryFormProps> = ({ ekipKodu, sheetUrl
       hizmetNo: formData.hizmetNo || undefined, deviceType: formData.deviceType, ekipKodu,
       timestamp: new Date().toLocaleString('tr-TR'), status: 'sent', reportType: 'inventory'
     };
-    if (sheetUrl) { try { await fetch(sheetUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(newLog) }); } catch (err) {} }
-    onLogAdded(newLog);
-    setIsSubmitting(false);
-    setFormData({ ...formData, serialNumber: '', hizmetNo: '' });
+
+    try {
+      // 1. Try PocketBase
+      try {
+        await pb.collection('reports').create({
+          type: 'Envanter Kayıtları',
+          ekip_kodu: ekipKodu,
+          data: JSON.stringify(newLog)
+        });
+      } catch (pbErr) {
+        console.warn("PocketBase submission failed, falling back to Sheets:", pbErr);
+        // 2. Fallback to Google Sheets
+        if (sheetUrl) {
+          await fetch(sheetUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify(newLog)
+          });
+        }
+      }
+      
+      onLogAdded(newLog);
+      setFormData({ ...formData, serialNumber: '', hizmetNo: '' });
+    } catch (err) {
+      console.error("Submission error:", err);
+      alert("Gönderim hatası!");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const labelClass = "text-[10px] font-black text-slate-500 uppercase tracking-tighter leading-none mb-1 block";

@@ -45,6 +45,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
   // Duyuru Form Durumu
   const [announcement, setAnnouncement] = useState({ target: 'HEPSİ', title: '', message: '' });
   const [isSending, setIsSending] = useState(false);
+  const [currentReplyingHizmetNo, setCurrentReplyingHizmetNo] = useState<string | null>(null);
 
   const fetchData = async () => {
     if (!sheetUrl) return;
@@ -73,7 +74,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 45000);
+    const interval = setInterval(fetchData, 120000); // 2 dakikada bir yenile
     return () => clearInterval(interval);
   }, [sheetUrl]);
 
@@ -96,6 +97,8 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
         mode: 'no-cors',
         body: JSON.stringify(payload)
       });
+
+      setCurrentReplyingHizmetNo(null);
       alert("Duyuru başarıyla gönderildi!");
       setAnnouncement({ target: 'HEPSİ', title: '', message: '' });
       fetchData();
@@ -176,33 +179,74 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
     }
   };
 
+
   const renderCellValue = (val: any) => {
     if (val === null || val === undefined) return "-";
     
-    // Handle object values (like Google Sheets image objects)
-    if (typeof val === 'object') {
-      // Check if it's an image object
-      const imageUrl = val.url || val.source || val.link || val.imageUrl || val.image || (typeof val.value === 'string' ? val.value : null);
-      
-      if (val.valueType === 'IMAGE' || val.type === 'IMAGE' || val.image || (imageUrl && (String(imageUrl).startsWith('http') || String(imageUrl).startsWith('data:image/')))) {
-        if (imageUrl) {
-          return (
-            <div className="group relative inline-block">
-              <img 
-                src={String(imageUrl)} 
-                alt="Saha Fotoğrafı" 
-                className="h-10 w-10 object-cover rounded border border-slate-200 cursor-zoom-in hover:scale-150 transition-transform"
-                referrerPolicy="no-referrer"
-                onClick={() => window.open(String(imageUrl), '_blank')}
-              />
-            </div>
-          );
-        }
+    let processedVal = val;
+    
+    // Fallback: If value is a string that looks like an object, try to parse it
+    if (typeof val === 'string' && val.trim().startsWith('{')) {
+      try {
+        processedVal = JSON.parse(val);
+      } catch (e) {
+        // Not a valid JSON object
       }
-      return JSON.stringify(val);
     }
 
-    const strVal = String(val);
+    // Handle object values (like Google Sheets image objects)
+    if (typeof processedVal === 'object') {
+      const obj = processedVal;
+      
+      // Exhaustive search for something that looks like an image URL or base64 in the object
+      let foundUrl: string | null = null;
+      const keysToSearch = ['url', 'source', 'link', 'imageUrl', 'image', 'value', 'data', 'content', 'file'];
+      
+      // 1. First check priority keys
+      for (const key of keysToSearch) {
+        if (typeof obj[key] === 'string' && (obj[key].startsWith('http') || obj[key].startsWith('data:image/') || obj[key].length > 500)) {
+          foundUrl = obj[key];
+          break;
+        }
+      }
+      
+      // 2. If not found, search ALL keys for any long string or URL
+      if (!foundUrl) {
+        for (const key in obj) {
+          if (typeof obj[key] === 'string' && (obj[key].startsWith('http') || obj[key].length > 100)) {
+            foundUrl = obj[key];
+            break;
+          }
+        }
+      }
+
+      if (foundUrl) {
+        const finalUrl = (foundUrl.length > 500 && !foundUrl.startsWith('http') && !foundUrl.startsWith('data:')) 
+          ? `data:image/jpeg;base64,${foundUrl}` 
+          : foundUrl;
+
+        return (
+          <div className="group relative inline-block">
+            <img 
+              src={finalUrl} 
+              alt="Saha Fotoğrafı" 
+              className="h-10 w-10 object-cover rounded border border-slate-200 cursor-zoom-in hover:scale-150 transition-transform shadow-sm"
+              referrerPolicy="no-referrer"
+              onClick={() => window.open(finalUrl, '_blank')}
+            />
+          </div>
+        );
+      }
+      
+      // Fallback for IMAGE markers that don't have extracted data
+      if (obj.valueType === 'IMAGE' || obj.type === 'IMAGE') {
+         return <span className="text-[9px] text-red-500 font-black italic break-all">VERİSİZ GÖRSEL: {JSON.stringify(obj)}</span>;
+      }
+
+      return <span className="text-[9px] text-slate-500 break-all">{JSON.stringify(obj)}</span>;
+    }
+
+    const strVal = String(val).trim();
 
     // Handle base64 image strings
     if (strVal.startsWith('data:image/')) {
@@ -222,9 +266,8 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
       );
     }
 
-    // Handle raw base64 strings (if they don't have the prefix but look like base64)
-    // This is a bit risky but we can try to detect long strings that might be base64
-    if (strVal.length > 1000 && !strVal.includes(' ') && !strVal.startsWith('http')) {
+    // Handle raw base64 strings
+    if (strVal.length > 500 && /^[A-Za-z0-9+/=]+$/.test(strVal) && !strVal.includes(' ') && !strVal.startsWith('http')) {
       const base64Url = `data:image/jpeg;base64,${strVal}`;
       return (
         <div className="group relative inline-block">
@@ -258,27 +301,29 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
           </div>
         );
       }
-      return <span className="text-blue-500 italic">Görsel</span>;
+      return <span className="text-blue-500 italic text-[10px]">Görsel</span>;
     }
 
     // Handle direct image URLs
-    if (typeof val === 'string' && (val.startsWith('http') && (val.match(/\.(jpeg|jpg|gif|png)$/i) || val.includes('googleusercontent') || val.includes('drive.google.com')))) {
+    if (strVal.startsWith('http') && (/\.(jpeg|jpg|gif|png|webp)$/i.test(strVal) || strVal.includes('googleusercontent') || strVal.includes('drive.google.com'))) {
       return (
         <div className="group relative inline-block">
           <img 
-            src={val} 
+            src={strVal} 
             alt="Fotoğraf" 
             className="h-10 w-10 object-cover rounded border border-slate-200 cursor-zoom-in hover:scale-150 transition-transform"
             referrerPolicy="no-referrer"
-            onClick={() => window.open(val, '_blank')}
+            onClick={() => window.open(strVal, '_blank')}
           />
         </div>
       );
     }
 
-    if (typeof val === 'string' && val.includes(',') && !isNaN(parseFloat(val.split(',')[0]))) {
-      return <a href={`https://www.google.com/maps?q=${val}`} target="_blank" className="text-indigo-600 underline font-black">KONUM</a>;
+    // Handle coordinates
+    if (strVal.includes(',') && !isNaN(parseFloat(strVal.split(',')[0]))) {
+      return <a href={`https://www.google.com/maps?q=${strVal}`} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-black">KONUM</a>;
     }
+    
     return strVal;
   };
 
@@ -303,28 +348,46 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredRows.map((row: any, idx: number) => (
-              <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                {headers.map(h => <td key={h} className="px-4 py-3 text-[10px] font-bold text-slate-700 whitespace-nowrap">{renderCellValue(row[h])}</td>)}
-                {isModemSetup && (
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <button 
-                      onClick={() => {
-                        setAnnouncement({
-                          target: row["Ekip"] || 'HEPSİ',
-                          title: row["Notlar"] || '',
-                          message: ''
-                        });
-                        setActiveView('notify');
-                      }}
-                      className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-[9px] font-black transition-all active:scale-95 shadow-sm"
-                    >
-                      <Send size={10} /> YANITLA
-                    </button>
-                  </td>
-                )}
-              </tr>
-            ))}
+            {filteredRows.map((row: any, idx: number) => {
+              const announcements = data?.['Duyurular'] || [];
+              const isReplied = isModemSetup && row["Hizmet No"] && announcements.some((a: any) => 
+                String(a["Başlık"]).startsWith(String(row["Hizmet No"]))
+              );
+              
+              return (
+                <tr key={idx} className={`hover:bg-slate-50 transition-colors ${isReplied ? 'bg-emerald-50/30' : ''}`}>
+                  {headers.map(h => (
+                    <td key={h} className="px-4 py-3 text-[10px] font-bold text-slate-700 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        {renderCellValue(row[h])}
+                        {h === "Hizmet No" && isReplied && (
+                          <span className="bg-emerald-100 text-emerald-700 text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase ring-1 ring-emerald-200">YANITLANDI</span>
+                        )}
+                      </div>
+                    </td>
+                  ))}
+                  {isModemSetup && (
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <button 
+                        onClick={() => {
+                          const hNo = row["Hizmet No"] ? String(row["Hizmet No"]) : '';
+                          setAnnouncement({
+                            target: row["Ekip"] || 'HEPSİ',
+                            title: hNo ? `${hNo} - ${row["Notlar"] || ''}` : (row["Notlar"] || ''),
+                            message: ''
+                          });
+                          setCurrentReplyingHizmetNo(hNo);
+                          setActiveView('notify');
+                        }}
+                        className={`flex items-center gap-1 ${isReplied ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'} text-white px-2 py-1 rounded text-[9px] font-black transition-all active:scale-95 shadow-sm`}
+                      >
+                        <Send size={10} /> {isReplied ? 'TEKRAR YANITLA' : 'YANITLA'}
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -336,16 +399,16 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
       <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm sticky top-20 z-40 space-y-3">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
           <div className="flex flex-wrap gap-1.5">
-            <button onClick={() => setActiveView('overview')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${activeView === 'overview' ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'}`}>
+            <button onClick={() => { setActiveView('overview'); setCurrentReplyingHizmetNo(null); }} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${activeView === 'overview' ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'}`}>
               <LayoutDashboard size={14} /> ÖZET
             </button>
-            <button onClick={() => setActiveView('teams')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${activeView === 'teams' ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'}`}>
+            <button onClick={() => { setActiveView('teams'); setCurrentReplyingHizmetNo(null); }} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${activeView === 'teams' ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'}`}>
               <Users size={14} /> EKİPLER
             </button>
-            <button onClick={() => setActiveView('notify')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${activeView === 'notify' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'}`}>
+            <button onClick={() => { setActiveView('notify'); setCurrentReplyingHizmetNo(null); }} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${activeView === 'notify' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'}`}>
               <Bell size={14} /> DUYURU GÖNDER
             </button>
-            <button onClick={() => setActiveView('settings')} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${activeView === 'settings' ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'}`}>
+            <button onClick={() => { setActiveView('settings'); setCurrentReplyingHizmetNo(null); }} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all ${activeView === 'settings' ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'}`}>
               <Settings size={14} /> AYARLAR
             </button>
             <button 

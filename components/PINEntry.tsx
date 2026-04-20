@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { KeyRound, ShieldAlert, Lock } from 'lucide-react';
+import { KeyRound, ShieldAlert, Lock, Loader2 } from 'lucide-react';
+import { pb } from '../lib/pocketbase';
 
 interface PINEntryProps {
   onLogin: (pin: string, isAdmin: boolean) => void;
@@ -11,43 +12,60 @@ export const PINEntry: React.FC<PINEntryProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const input = pin.trim().toUpperCase();
-    const passInput = password.trim().toUpperCase();
+    const passInput = password.trim();
     
-    const adminPins = ['ADMIN', '9999', 'FSEVKAMIRI1', 'FSEVKAMIRI2', 'FSAHAAMIRI', 'SHEFF'];
-    const teamPins = [
-      '242FSAHA17550', '242FSAHA17551', '242FSAHA17552', '242FSAHA17553', '242FSAHA17554',
-      '242FSAHA17555', '242FSAHA17556', '242FSAHA17557', '242FSAHA17558', '242FSAHA17559', '242FSAHA17560',
-      '242FSAHA17561', '242FSAHA17562', '242FSAHA17563', '242FSAHA17564', '242FSAHA17565', '242FSAHA17599',
-      '242FKABLO17599', '242FKABLO17600', '242FKABLO17601', '242FFO17501', '242TESTUSER1'
-    ];
+    setIsLoading(true);
+    setError(false);
 
-    const isAdmin = adminPins.includes(input);
-    const isTeam = teamPins.includes(input);
+    try {
+      // PocketBase Auth
+      const authData = await pb.collection('teams').authWithPassword(input, passInput);
+      const isAdmin = authData.record.role === 'admin';
+      onLogin(input, isAdmin);
+    } catch (err: any) {
+      console.error("PocketBase login error:", err);
+      
+      // Fallback to hardcoded PINs for development/transition
+      const adminPins = ['ADMIN', '9999', 'FSEVKAMIRI1', 'FSEVKAMIRI2', 'FSAHAAMIRI', 'SHEFF'];
+      const teamPins = [
+        '242FSAHA17550', '242FSAHA17551', '242FSAHA17552', '242FSAHA17553', '242FSAHA17554',
+        '242FSAHA17555', '242FSAHA17556', '242FSAHA17557', '242FSAHA17558', '242FSAHA17559',
+        '242FSAHA17561', '242FSAHA17562', '242FSAHA17563', '242FSAHA17564', '242FSAHA17565', '242FSAHA17599',
+        '242FKABLO17599', '242FKABLO17600', '242FKABLO17601', '242FFO17501'
+      ];
 
-    if (isAdmin) {
-      if (passInput === 'FSAHAARTES') {
-        onLogin(input === '9999' ? 'ADMIN' : input, true);
+      const isAdmin = adminPins.includes(input);
+      const isTeam = teamPins.includes(input);
+
+      if (isAdmin) {
+        if (passInput.toUpperCase() === 'FSAHAARTES') {
+          onLogin(input === '9999' ? 'ADMIN' : input, true);
+        } else {
+          setError(true);
+          setErrorMsg('YÖNETİCİ ŞİFRESİ HATALI');
+        }
+      } else if (isTeam) {
+        if (passInput.toUpperCase() === 'ARTESSAHA') {
+          onLogin(input, false);
+        } else {
+          setError(true);
+          setErrorMsg('EKİP ŞİFRESİ HATALI');
+        }
       } else {
         setError(true);
-        setErrorMsg('YÖNETİCİ ŞİFRESİ HATALI');
+        setErrorMsg('GİRİŞ HATALI (POCKETBASE VEYA YEREL)');
+      }
+      
+      if (error) {
         setTimeout(() => { setError(false); setErrorMsg(''); }, 2000);
       }
-    } else if (isTeam) {
-      if (passInput === 'ARTESSAHA') {
-        onLogin(input, false);
-      } else {
-        setError(true);
-        setErrorMsg('EKİP ŞİFRESİ HATALI');
-        setTimeout(() => { setError(false); setErrorMsg(''); }, 2000);
-      }
-    } else {
-      setError(true);
-      setErrorMsg('GEÇERSİZ EKİP KODU');
-      setTimeout(() => { setError(false); setErrorMsg(''); }, 2000);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -107,8 +125,10 @@ export const PINEntry: React.FC<PINEntryProps> = ({ onLogin }) => {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-200 transition-all transform active:scale-95 uppercase tracking-widest"
+            disabled={isLoading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-200 transition-all transform active:scale-95 uppercase tracking-widest flex items-center justify-center gap-2"
           >
+            {isLoading ? <Loader2 className="animate-spin" size={20} /> : null}
             SİSTEME BAĞLAN
           </button>
         </form>

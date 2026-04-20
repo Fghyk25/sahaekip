@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { ImprovementReport, DurumSecenekleri } from '../types';
 import { Send, Loader2, Camera, MapPin, CheckCircle } from 'lucide-react';
+import { pb } from '../lib/pocketbase';
 
 interface ImprovementFormProps {
   ekipKodu: string;
@@ -26,15 +27,41 @@ export const ImprovementForm: React.FC<ImprovementFormProps> = ({ ekipKodu, shee
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    const reportType = type === 'bildirim' ? 'improvement_notification' : 'improvement_production';
     const newReport: ImprovementReport = {
       id: crypto.randomUUID(), ...formData, photo: photo || undefined, location: location || undefined, ekipKodu,
       timestamp: new Date().toLocaleString('tr-TR'), status: 'sent', improvementType: type, 
-      reportType: type === 'bildirim' ? 'improvement_notification' : 'improvement_production'
+      reportType
     };
-    if (sheetUrl) { try { await fetch(sheetUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(newReport) }); } catch (err) {} }
-    onReportAdded(newReport);
-    setIsSubmitting(false);
-    onComplete();
+
+    try {
+      // 1. Try PocketBase
+      try {
+        await pb.collection('reports').create({
+          type: type === 'bildirim' ? 'İyileştirme Bildirimleri' : 'İyileştirme İmalatları',
+          ekip_kodu: ekipKodu,
+          data: JSON.stringify(newReport)
+        });
+      } catch (pbErr) {
+        console.warn("PocketBase submission failed, falling back to Sheets:", pbErr);
+        // 2. Fallback to Google Sheets
+        if (sheetUrl) {
+          await fetch(sheetUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify(newReport)
+          });
+        }
+      }
+      
+      onReportAdded(newReport);
+      onComplete();
+    } catch (err) {
+      console.error("Submission error:", err);
+      alert("Gönderim hatası!");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const labelClass = "text-[10px] font-black text-slate-500 uppercase tracking-tighter mb-1.5 block";
