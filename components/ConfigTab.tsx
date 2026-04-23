@@ -15,7 +15,7 @@ export const ConfigTab: React.FC<ConfigTabProps> = ({ sheetUrl, onUpdate }) => {
   const [copied, setCopied] = useState(false);
 
   const scriptCode = `/**
- * SahaRapor v16 - Görsel Sorunu Giderilmiş Versiyon
+ * SahaRapor v17 - Zaman Damgası UTC+3 Düzenlenmiş Versiyon
  */
 
 function doGet(e) {
@@ -117,7 +117,9 @@ function doPost(e) {
     }
 
     const now = new Date();
-    const timestamp = Utilities.formatDate(now, "GMT+3", "dd.MM.yyyy HH:mm:ss");
+    // Server UTC olduğu için Türkiye saati (UTC+3) için 3 saat ekliyoruz
+    const turkeyNow = new Date(now.getTime() + (3 * 60 * 60 * 1000));
+    const timestamp = Utilities.formatDate(turkeyNow, "GMT+3", "dd.MM.yyyy HH:mm:ss");
     const locationStr = data.location ? (data.location.lat + "," + data.location.lng) : "-";
     
     let photoData = "";
