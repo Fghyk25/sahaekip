@@ -46,6 +46,11 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
   const [announcement, setAnnouncement] = useState({ target: 'HEPSİ', title: '', message: '' });
   const [isSending, setIsSending] = useState(false);
   const [currentReplyingHizmetNo, setCurrentReplyingHizmetNo] = useState<string | null>(null);
+  
+  // Audio Alert State
+  const [alertCount, setAlertCount] = useState(0);
+  const [isAudioMuted, setIsAudioMuted] = useState(true);
+  const [lastUnrepliedIds, setLastUnrepliedIds] = useState<string[]>([]);
 
   const fetchData = async () => {
     if (!sheetUrl) return;
@@ -74,9 +79,79 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 120000); // 2 dakikada bir yenile
+    const interval = setInterval(fetchData, 30000); // 30 saniyede bir yenile
     return () => clearInterval(interval);
   }, [sheetUrl]);
+
+  // isReplied Helper
+  const checkIfReplied = (row: any, announcements: any[]) => {
+    if (!row["Hizmet No"]) return false;
+    const hNo = String(row["Hizmet No"]);
+    const note = String(row["Notlar"] || "");
+    return announcements.some((a: any) => {
+      const title = String(a["Başlık"]);
+      return title.includes(hNo) && title.includes(note);
+    });
+  };
+
+  // Audio Detection logic
+  useEffect(() => {
+    if (!data || !data['Modem Kurulumlar']) return;
+    
+    const modemSetups = data['Modem Kurulumlar'] || [];
+    const announcements = data['Duyurular'] || [];
+    
+    const currentUnrepliedIds = modemSetups
+      .filter((row: any) => !checkIfReplied(row, announcements))
+      .map((row: any) => `${row["Zaman Damgası"] || ''}-${row["Hizmet No"] || 'N/A'}-${row["Notlar"] || 'N/A'}`);
+    
+    // Yeni bir ID gelmiş mi kontrol et (daha önce olmayan)
+    const hasNew = currentUnrepliedIds.some(id => !lastUnrepliedIds.includes(id));
+    
+    // lastUnrepliedIds.length > 0 -> ilk yüklemede ötmesin diye
+    if (hasNew && lastUnrepliedIds.length > 0) {
+      setAlertCount(6);
+    }
+    
+    setLastUnrepliedIds(currentUnrepliedIds);
+  }, [data]);
+
+  // Audio Beep Player
+  useEffect(() => {
+    if (alertCount > 0 && !isAudioMuted) {
+      console.log("Playing alert sound, remaining:", alertCount);
+      // Web Audio API ile bip sesi üretme
+      try {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.type = 'square'; // Daha keskin ve duyulur bir ses
+        oscillator.frequency.setValueAtTime(660, audioCtx.currentTime); // E5 note
+        
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.05); // Biraz daha yüksek ses
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.8);
+
+        const timer = setTimeout(() => {
+          setAlertCount(prev => prev - 1);
+        }, 1200); // 1.2 saniye aralıklarla
+        
+        return () => {
+          clearTimeout(timer);
+          if (audioCtx.state !== 'closed') audioCtx.close();
+        };
+      } catch (err) {
+        console.error("Audio error:", err);
+      }
+    }
+  }, [alertCount, isAudioMuted]);
 
   const sendAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -350,9 +425,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
           <tbody className="divide-y divide-slate-100">
             {filteredRows.map((row: any, idx: number) => {
               const announcements = data?.['Duyurular'] || [];
-              const isReplied = isModemSetup && row["Hizmet No"] && announcements.some((a: any) => 
-                String(a["Başlık"]).startsWith(String(row["Hizmet No"]))
-              );
+              const isReplied = isModemSetup && checkIfReplied(row, announcements);
               
               return (
                 <tr key={idx} className={`hover:bg-slate-50 transition-colors ${isReplied ? 'bg-emerald-50/30' : ''}`}>
@@ -448,6 +521,23 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ sheetUrl, on
             </div>
             <button onClick={fetchData} disabled={loading} className="p-2 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-600">
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            </button>
+            <button 
+              onClick={() => {
+                const newMuteState = !isAudioMuted;
+                setIsAudioMuted(newMuteState);
+                if (!newMuteState) {
+                  // Sesi test et ve tarayıcı kilidini aç
+                  setAlertCount(1);
+                  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                  setTimeout(() => audioCtx.close(), 100);
+                }
+              }} 
+              className={`p-2 border rounded-lg transition-all flex items-center gap-2 ${isAudioMuted ? 'bg-slate-50 border-slate-200 text-slate-400' : 'bg-rose-500 border-rose-600 text-white shadow-lg scale-105'}`}
+              title={isAudioMuted ? "Sesli Uyarıyı Aç" : "Sesli Uyarıyı Kapat"}
+            >
+              {isAudioMuted ? <Bell size={16} /> : <AlertTriangle size={16} className="animate-bounce" />}
+              <span className="text-[9px] font-black">{isAudioMuted ? "SES KAPALI" : "SES AKTİF"}</span>
             </button>
             <div className="relative flex-1 md:w-48">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
