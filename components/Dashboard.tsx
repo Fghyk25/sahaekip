@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ReportForm } from './ReportForm';
+import { ProblemSection } from './ProblemSection';
 import { ImprovementForm } from './ImprovementForm';
 import { ModemSetupForm } from './ModemSetupForm';
 import { DamageReportForm } from './DamageReportForm';
@@ -9,6 +10,7 @@ import { VehicleLogForm } from './VehicleLogForm';
 import { PortChangeForm } from './PortChangeForm';
 import { InventoryForm } from './InventoryForm';
 import { KabloMaterialForm } from './KabloMaterialForm';
+import { FastBookForm } from './FastBookForm';
 import { ReportList } from './ReportList';
 import { ConfigTab } from './ConfigTab';
 import { Report, ImprovementReport, ModemSetupReport, DamageReport, JobCompletionReport, VehicleLog, PortChangeReport, InventoryLog, Announcement, KabloMaterialReport } from '../types';
@@ -29,7 +31,8 @@ import {
   Bell,
   Clock,
   RefreshCw,
-  Zap
+  Zap,
+  FileSpreadsheet
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -62,8 +65,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onReportAdded, onImprovementReportAdded, onModemReportAdded, onDamageReportAdded, 
   onJobCompletionAdded, onVehicleLogAdded, onPortChangeAdded, onInventoryLogAdded, onKabloMaterialReportAdded, onUpdateSheetUrl 
 }) => {
-  const isKabloTeam = ['242FKABLO17599', '17600', '17601'].includes(ekipKodu);
-  const [activeTab, setActiveTab] = useState<'problem' | 'improvement_notification' | 'improvement_production' | 'modem' | 'damage' | 'job' | 'vehicle' | 'port' | 'inventory' | 'history' | 'notices' | 'kablo_material'>('vehicle');
+  const isKabloTeam = ['242FKABLO17599', '242FKABLO17600', '242FKABLO17601', '17600', '17601', '242FFO17501', '17501'].includes(ekipKodu) || String(ekipKodu || '').toUpperCase().includes('KABLO') || String(ekipKodu || '').toUpperCase().includes('242FFO');
+  const [activeTab, setActiveTab] = useState<'problem' | 'improvement_notification' | 'improvement_production' | 'modem' | 'damage' | 'job' | 'vehicle' | 'port' | 'inventory' | 'history' | 'notices' | 'kablo_material' | 'fastbook'>('vehicle');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loadingNotices, setLoadingNotices] = useState(false);
@@ -125,19 +128,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
     .filter(jc => jc.timestamp.startsWith(todayStr))
     .reduce((acc, curr) => acc + curr.isAdedi, 0);
 
-  const tabs = [
+  const tabs = isKabloTeam ? [
+    { id: 'vehicle', label: 'İŞBAŞI', icon: <Car size={16} />, color: 'bg-cyan-700' },
+    { id: 'notices', label: 'BİLDİRİMLER', icon: <Bell size={16} />, color: 'bg-indigo-600' },
+    { id: 'problem', label: 'SORUNLU İŞLER', icon: <ClipboardList size={16} />, color: 'bg-blue-600' },
+    { id: 'improvement_notification', label: 'İYİLEŞTİRME BİLDİRİMİ', icon: <Zap size={16} />, color: 'bg-teal-600' },
+    { id: 'improvement_production', label: 'İYİLEŞTİRME İMALATI', icon: <Zap size={16} />, color: 'bg-teal-700' },
+    { id: 'fastbook', label: 'ŞANTİYE DEFTERİ', icon: <FileSpreadsheet size={16} />, color: 'bg-emerald-700' },
+    { id: 'job', label: 'İŞ BİTİR', icon: <CheckCircle size={16} />, color: 'bg-orange-600' },
+    { id: 'damage', label: 'HASAR KAYDI', icon: <AlertTriangle size={16} />, color: 'bg-red-600' },
+    { id: 'modem', label: 'İYS KONTROL', icon: <Router size={16} />, color: 'bg-indigo-600' },
+    { id: 'port', label: 'PORT DEĞİŞİMİ', icon: <Shuffle size={16} />, color: 'bg-violet-600' },
+    { id: 'kablo_material', label: 'MALZEME', icon: <Package size={16} />, color: 'bg-emerald-600' },
+    { id: 'history', label: 'GEÇMİŞ', icon: <LayoutGrid size={16} />, color: 'bg-slate-800' },
+  ] : [
     { id: 'vehicle', label: 'İŞBAŞI', icon: <Car size={16} />, color: 'bg-cyan-700' },
     { id: 'notices', label: 'BİLDİRİMLER', icon: <Bell size={16} />, color: 'bg-indigo-600' },
     { id: 'job', label: 'İŞ BİTİR', icon: <CheckCircle size={16} />, color: 'bg-orange-600' },
-    { id: isKabloTeam ? 'kablo_material' : 'inventory', label: isKabloTeam ? 'MALZEME' : 'ENVANTER', icon: <Package size={16} />, color: 'bg-emerald-600' },
-    { id: 'modem', label: isKabloTeam ? 'İYS KONTROL' : 'MODEM KURULUM', icon: <Router size={16} />, color: 'bg-indigo-600' },
+    { id: 'inventory', label: 'ENVANTER', icon: <Package size={16} />, color: 'bg-emerald-600' },
+    { id: 'modem', label: 'MODEM KURULUM', icon: <Router size={16} />, color: 'bg-indigo-600' },
     { id: 'problem', label: 'SORUNLU İŞ', icon: <ClipboardList size={16} />, color: 'bg-blue-600' },
     { id: 'damage', label: 'HASAR KAYDI', icon: <AlertTriangle size={16} />, color: 'bg-red-600' },
     { id: 'improvement_notification', label: 'İYİLEŞTİRME BİLDİRİM', icon: <Zap size={16} />, color: 'bg-teal-600' },
     { id: 'improvement_production', label: 'İYİLEŞTİRME İMALAT', icon: <Zap size={16} />, color: 'bg-teal-700' },
     { id: 'port', label: 'PORT DEĞİŞİM', icon: <Shuffle size={16} />, color: 'bg-violet-600' },
     { id: 'history', label: 'GEÇMİŞ', icon: <LayoutGrid size={16} />, color: 'bg-slate-800' },
-  ] as const;
+  ];
 
   const currentTab = tabs.find(t => t.id === activeTab) || tabs[0];
 
@@ -187,8 +203,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
             )}
           </div>
         );
+      case 'fastbook':
+        return <FastBookForm ekipKodu={ekipKodu} sheetUrl={sheetUrl} onComplete={() => {}} />;
       case 'problem':
-        return <ReportForm ekipKodu={ekipKodu} sheetUrl={sheetUrl} onReportAdded={onReportAdded} onComplete={() => setActiveTab('history')} />;
+        return (
+          <ProblemSection
+            ekipKodu={ekipKodu}
+            sheetUrl={sheetUrl}
+            reports={reports}
+            onReportAdded={onReportAdded}
+            isKabloTeam={isKabloTeam}
+          />
+        );
       case 'inventory':
         return <InventoryForm ekipKodu={ekipKodu} sheetUrl={sheetUrl} onLogAdded={onInventoryLogAdded} onComplete={() => {}} />;
       case 'kablo_material':

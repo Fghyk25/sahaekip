@@ -12,7 +12,7 @@ interface ModemSetupFormProps {
 }
 
 export const ModemSetupForm: React.FC<ModemSetupFormProps> = ({ ekipKodu, sheetUrl, onReportAdded, onComplete }) => {
-  const isKabloTeam = ['242FKABLO17599', '17600', '17601'].includes(ekipKodu);
+  const isKabloTeam = ['242FKABLO17599', '242FKABLO17600', '242FKABLO17601', '17600', '17601', '242FFO17501', '17501'].includes(ekipKodu) || String(ekipKodu || '').toUpperCase().includes('KABLO') || String(ekipKodu || '').toUpperCase().includes('242FFO');
   const kabloOptions = ['HIZ KONTROL', 'IP KONTROL', 'HIZ DÜŞÜR', 'SİL TANIT', 'İRTİBAT ?'];
   const defaultOptions = ['KULLANICI ADI ŞİFRE', 'SİL TANIT', 'HIZ DÜŞÜR', 'İRTİBAT ?'];
   const options = isKabloTeam ? kabloOptions : defaultOptions;
