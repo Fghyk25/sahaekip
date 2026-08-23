@@ -106,8 +106,12 @@ function doPost(e) {
         const folders = DriveApp.getFoldersByName(folderName);
         const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
         const file = DriveApp.getFileById(newSS.getId());
-        folder.addFile(file);
-        DriveApp.getRootFolder().removeFile(file);
+        if (typeof file.moveTo === 'function') {
+          file.moveTo(folder);
+        } else {
+          folder.addFile(file);
+          DriveApp.getRootFolder().removeFile(file);
+        }
       } catch (err) {
         // Taşıma yapılamazsa root dizinde kalır
       }
