@@ -52,7 +52,12 @@ function doPost(e) {
       const dayMonth = Utilities.formatDate(turkeyNow, "GMT+3", "dd.MM.yyyy_HH.mm");
       const fileTitle = data.fileTitle || data.sheetTitle || ("KABLO_" + (data.ekipKodu || "EKIP") + "_" + dayMonth);
       
-      // 1. Yeni bir Google E-Tablo DOSYASI oluştur (Ana spreadsheet'e sekme açmaz!)
+      // 1. Hedef klasörü bul veya oluştur
+      const folderName = "SahaRapor_ŞantiyeDefterleri";
+      const folders = DriveApp.getFoldersByName(folderName);
+      const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+
+      // 2. Yeni bir Google E-Tablo DOSYASI oluştur (Ana spreadsheet'e sekme açmaz!)
       const newSS = SpreadsheetApp.create(fileTitle);
       const targetSheet = newSS.getActiveSheet();
       targetSheet.setName("Şantiye Defteri");
@@ -84,20 +89,14 @@ function doPost(e) {
         });
       }
 
-      // Dosyayı düzenli tutmak için "SahaRapor_ŞantiyeDefterleri" klasörüne taşı
+      SpreadsheetApp.flush();
+
+      // Dosyayı hedef klasöre taşı (Google Drive modern API: file.moveTo(folder))
       try {
-        const folderName = "SahaRapor_ŞantiyeDefterleri";
-        const folders = DriveApp.getFoldersByName(folderName);
-        const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
         const file = DriveApp.getFileById(newSS.getId());
-        if (typeof file.moveTo === 'function') {
-          file.moveTo(folder);
-        } else {
-          folder.addFile(file);
-          DriveApp.getRootFolder().removeFile(file);
-        }
+        file.moveTo(folder);
       } catch (err) {
-        // Taşıma yapılamazsa root dizinde kalır
+        // Hata durumunda try-catch ile akış kesilmez, dosya oluşturulmuş olarak döner
       }
 
       return ContentService.createTextOutput(JSON.stringify({
